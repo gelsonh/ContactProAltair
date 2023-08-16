@@ -10,6 +10,7 @@ using ContactProAltair.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using ContactProAltair.Services.Interfaces;
+using System.Collections;
 
 namespace ContactProAltair.Controllers
 {
@@ -19,36 +20,68 @@ namespace ContactProAltair.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<AppUser> _userManager;
         private readonly IImageService _imageService;
-
-
-        public ContactsController(ApplicationDbContext context, UserManager<AppUser> userManager, IImageService imageService)
+        private readonly IAddressBookService _addressBookService;
+        public ContactsController(ApplicationDbContext context, UserManager<AppUser> userManager, IImageService imageService, IAddressBookService addressBookService)
         {
             _context = context;
             _userManager = userManager;
             _imageService = imageService;
+            _addressBookService = addressBookService;
         }
 
         // GET: Contacts
         public async Task<IActionResult> Index()
         {
-            IEnumerable<Contact> model = await _context.Contacts.ToListAsync();
+            string? userId = _userManager.GetUserId(User);
+            IEnumerable<Contact> contacts = await _context.Contacts.Include(c => c.Categories).Where(c => c.AppUserId == userId).ToListAsync();
 
-            return View(model);
 
-           
+            List<Category> categories = await _context.Categories.Where(c => c.AppUserId == userId).ToListAsync();
+            ViewData["CategoriesList"] = new MultiSelectList(categories, "Id", "Name");
+            return View(contacts);       
         }
 
-        // GET: Contacts/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> SearchContacts(string? searchString)
+        {
+            string? userId = _userManager.GetUserId(User);
+
+            List<Contact> contacts = await _context.Contacts.Include(c => c.Categories).Where(c => c.AppUserId == userId).ToListAsync();
+
+            List<Contact> model = new List<Contact>();
+
+            if (string.IsNullOrEmpty(searchString))
+            {
+                model = contacts;
+            }
+            else
+            {
+                model = contacts.Where(c => c.FullName!.ToLower().Contains(searchString.ToLower())) 
+                                .OrderBy(c => c.LastName)
+                                .ThenBy(c => c.FirstName)
+                                .ToList();
+            }
+
+            List<Category> categories = await _context.Categories.Where(c => c.AppUserId == userId).ToListAsync();
+            ViewData["CategoriesList"] = new MultiSelectList(categories, "Id", "Name");
+            return View(nameof(Index));
+        }
+
+
+
+            // GET: Contacts/Details/5
+   
+
+            public async Task<IActionResult> Details(int? id)
         {
             if (id == null || _context.Contacts == null)
             {
                 return NotFound();
             }
 
-            var contact = await _context.Contacts
+            Contact? contact = await _context.Contacts
                 .Include(c => c.AppUser)
                 .FirstOrDefaultAsync(m => m.Id == id);
+
             if (contact == null)
             {
                 return NotFound();
@@ -59,9 +92,13 @@ namespace ContactProAltair.Controllers
 
         // GET: Contacts/Create
         [Authorize]
-        public IActionResult Create()
+        public async Task <IActionResult> Create()
         {
+            string userId = _userManager.GetUserId(User)!;
+            List<Category> categories = await _context.Categories.Where(c => c.AppUserId == userId).ToListAsync();
 
+            ViewData["CategoriesList"] = new MultiSelectList(categories, "Id", "Name");
+          
             return View();
         }
 
@@ -71,11 +108,12 @@ namespace ContactProAltair.Controllers
         [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("FirstName,LastName,DateOfBirth,Address1,Address2,City,State,ZipCode,Email,PhoneNumber,ImageFile")] Contact contact)
+        public async Task<IActionResult> Create([Bind("Id,FirstName,LastName,CreatedDate,DateOfBirth,Address1,Address2,City,State,ZipCode,Email,PhoneNumber,ImageFile")] Contact contact, List<int> selected)
         {
             ModelState.Remove("AppUserId");
             if (ModelState.IsValid)
             {
+
                 // Set User ID
                 contact.AppUserId = _userManager.GetUserId(User);
 
@@ -91,36 +129,38 @@ namespace ContactProAltair.Controllers
                     contact.ImageData = await _imageService.ConvertFileToByteArrayAsync(contact.ImageFile);
                     // 2. Assign the ImageType based on the choosen file
                     contact.ImageType = contact.ImageFile.ContentType;
-                    
-                    // contact.ImageData = contact.ImageFile
+                                    
                 }
-
                 _context.Add(contact);
                 await _context.SaveChangesAsync();
+                await _addressBookService.AddCategoriesToContactAsync(selected, contact.Id);
+
                 return RedirectToAction(nameof(Index));
             }
 
             return View(contact);
         }
-
         // GET: Contacts/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null) 
+            if (id == null || _context.Contacts == null) 
             {
                 return NotFound();
             }
 
-            Contact? contact = await _context.Contacts.FirstOrDefaultAsync(c => c.Id == id);
-
+            string userId = _userManager.GetUserId(User)!;
+            Contact? contact = await _context.Contacts.Include(c => c.Categories)
+                                                      .FirstOrDefaultAsync(c => c.Id == id && c.AppUserId == userId);
             if (contact == null)
             {
                 return NotFound();
             }
-
             // Add ViewData for Categories
             // Add ViewData for States
-            
+            List<Category> categories = await _context.Categories.Where(c => c.AppUserId == userId).ToListAsync();
+            List<int>categoryIds = contact.Categories.Select(c => c.Id).ToList();
+
+            ViewData["CategoryList"] = new MultiSelectList(categories, "Id", "Name", categoryIds);
             return View(contact);
         }
 
@@ -129,14 +169,15 @@ namespace ContactProAltair.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,AppUserId,FirstName,LastName,CreatedName,DateOfBirth,Address1,Address2,City,State,ZipCode,Email,PhoneNumber,ImageFile,ImageData,ImageType")] Contact contact)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,AppUserId,FirstName,LastName,CreatedName,DateOfBirth,Address1,Address2,City,State,ZipCode,Email,PhoneNumber,ImageFile,ImageData,ImageType")] Contact contact, List<int> selected)
         {
             if (id != contact.Id)
             {
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
+            if (ModelState.IsValid) 
+
             {
                 try
                 { 
@@ -145,16 +186,22 @@ namespace ContactProAltair.Controllers
                     if (contact.ImageFile != null)
                     {
                         // Create the Image Service
-                        // 1. Convert the file to buyte array and assign it to the ImageData
+                        // 1. Convert the file to byte array and assign it to the ImageData
                         contact.ImageData = await _imageService.ConvertFileToByteArrayAsync(contact.ImageFile);
                         // 2. Assign the ImageType based on the choosen file
                         contact.ImageType = contact.ImageFile.ContentType;
-
 
                     }
 
                     _context.Update(contact);
                     await _context.SaveChangesAsync();
+
+                    // Remove existing categories from the contact
+                    await _addressBookService.RemoveCategoriesFromContactAsync(contact.Id);
+                    // Add new categories to the contact
+                    await _addressBookService.AddCategoriesToContactAsync(selected, contact.Id);
+                  
+                   
                 }
                 catch (DbUpdateConcurrencyException)
                 {

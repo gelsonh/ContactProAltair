@@ -22,6 +22,7 @@ builder.Services.AddDefaultIdentity<AppUser>(options => options.SignIn.RequireCo
 
 // Register Custom Services
 builder.Services.AddScoped<IImageService, ImageService>();
+builder.Services.AddScoped<IAddressBookService, AddressBookServices>();
 
 
 builder.Services.AddMvc();

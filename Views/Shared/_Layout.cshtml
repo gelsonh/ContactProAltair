@@ -24,7 +24,20 @@
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark  border-bottom box-shadow mb-3">
             <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">  <img src="/img/contact+ copy.png" height="50">Contacts+</a>
+              
+                <div class="dropdown">
+                    <button class="btn dropdown-toggle text-light" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">  <img src="/img/contact+ copy.png" height="50">Contacts+</a>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item"  asp-area="" asp-controller="Contacts" asp-action="Index"><i class="bi bi-person-lines-fill"></i> Contacts</a></li>
+                        <li><a class="dropdown-item" asp-area="" asp-controller="Categories" asp-action="Index"><i class="bi bi-bookmark"></i> Category</a></li>                  
+                    </ul>
+                </div>
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index"><i class="bi bi-house ms-3"></i> </a>
+                 
+               
+
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>

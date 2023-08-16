@@ -5,7 +5,7 @@ namespace ContactProAltair.Services
 {
     public class ImageService : IImageService
     {
-        private readonly string? _defaultImage = "/img/DefaultContactImage.png";
+        private readonly string? _defaultImage = "/img/MicrosoftTeams-image (2).png";
         public string? ConvertByteArrayToFile(byte[]? fileData, string? extension)
         {
             try
