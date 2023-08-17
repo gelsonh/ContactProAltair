@@ -9,6 +9,9 @@ using ContactProAltair.Data;
 using ContactProAltair.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using ContactProAltair.Models.ViewModels;
+using Microsoft.AspNetCore.Identity.UI.Services;
+using ContactProAltair.Services;
 
 namespace ContactProAltair.Controllers
 {
@@ -17,11 +20,13 @@ namespace ContactProAltair.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<AppUser> _userManager;
+        private readonly IEmailSender _emailService;
 
-        public CategoriesController(ApplicationDbContext context, UserManager<AppUser> userManager)
+        public CategoriesController(ApplicationDbContext context, UserManager<AppUser> userManager, IEmailSender emailService)
         {
             _context = context;
             _userManager = userManager;
+            _emailService = emailService;
         }
 
         // GET: Categories
@@ -108,6 +113,86 @@ namespace ContactProAltair.Controllers
             return View(category);
         }
 
+
+        [HttpGet]
+        public async Task<IActionResult> EmailCategory(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            // Do something
+            string? appUserId = _userManager.GetUserId(User);
+            Category? category = await _context.Categories.Where(c => c.AppUserId == appUserId)
+                                                          .Include(c => c.Contacts)
+                                                          .FirstOrDefaultAsync(c => c.Id == id);
+                                                          
+
+            if (category == null)
+            {
+                return NotFound();
+            }
+
+            // Prep Data for the View
+            // Instantiate & Populate the EmailData
+            IEnumerable<string> emails = category.Contacts.Select(c => c.Email)!;
+
+            EmailData emailData = new EmailData()
+            {
+                // Populate the properties as per your requirements
+
+                GroupName = category.Name, 
+                EmailAddress = string.Join(";", emails),
+                EmailSubject = $"Group Message:{category.Name}"
+            };
+
+          //  EmailCategoryViewModel viewModel = new EmailCategoryViewModel()
+            //{
+             //   EmailData = emailData,
+             //   Category = category
+           // };
+
+            ViewData["EmailContacts"] = category.Contacts.ToList();
+           
+            // Return the view along with the model
+            return View(emailData);
+               
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EmailCategory(EmailData emailData)
+        {
+            if (ModelState.IsValid)
+            {
+               // string? swalMessage = string.Empty;
+                try
+                {
+                    string? email = emailData.EmailAddress;
+                    string? subject = emailData.EmailSubject;
+                    string? htmlMessage = emailData.EmailBody;
+
+                    await _emailService.SendEmailAsync(email!, subject!, htmlMessage!);
+
+                    // Send Sweet Alert for success
+                    string? swalMessage = "Success: Email Sent!";
+                    return RedirectToAction(nameof(Index), "Contacts", new {swalMessage = swalMessage});
+                }
+                catch (Exception)
+                {
+                   string? swalMessage = "Error: Email Failed to send!";
+                   return RedirectToAction(nameof(EmailCategory), new {swalMessage = swalMessage });
+                 
+
+                    throw;
+                }
+            }
+            return View(emailData);
+        }
+
+
+
         // POST: Categories/Edit/5
         // To protect from overposting attacks, enable the specific properties you want to bind to.
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
@@ -143,6 +228,9 @@ namespace ContactProAltair.Controllers
             
             return View(category);
         }
+
+
+
 
         // GET: Categories/Delete/5
         public async Task<IActionResult> Delete(int? id)

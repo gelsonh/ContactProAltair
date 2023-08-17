@@ -19,15 +19,15 @@
     <div class="col-12 col-md-4 sideNav">
         <form asp-action="SearchContacts" asp-controller="Contacts" method="post">
             <div class="input-group">
-                <input class="form-control" type="search" name="searchString"
+                <input class="form-control" type="search" name="searchString" value="@ViewBag.SearchString" 
                        placeholder="Contact Name" />
                 <input type="submit" class="btn btn-outline-primary" value="Search" />
             </div>
         </form>
-        <form asp-action="" asp-controller="" method="post">
+        <form asp-action="Index" asp-controller="Contacts" method="post">
             <div class="mt-5">
                 <label class="form-label fw-bold">CATEGORY FILTER</label>
-                <select name="" class="form-control" 
+                <select name="categoryId" class="form-control" asp-items="@ViewBag.CategoriesList"
                         onchange="this.form.submit()" onfocus="this.selectedIndex=-1;this.blur();">
                     <option>All Contacts</option>
                 </select>
@@ -112,3 +112,26 @@
         </div>
     </div>
 </div>
+@section scripts{
+    <!--Sweet Alerts-->
+    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        let message = '@(ViewBag.SwalMessage)';
+        if (!message.includes("Error") && message != '') {
+            Swal.fire({
+                backdrop: false,
+                icon: 'success',
+                title: message,
+                showConfirmButton: true
+            });
+        } else if (message.includes("Error")) {
+            Swal.fire({
+                backdrop: false,
+                icon: 'error',
+                title: 'Oops...',
+                text: message
+            });
+        }
+    </script>
+}

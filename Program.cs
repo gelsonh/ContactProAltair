@@ -3,6 +3,7 @@ using ContactProAltair.Models;
 using ContactProAltair.Services;
 using ContactProAltair.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,9 +24,13 @@ builder.Services.AddDefaultIdentity<AppUser>(options => options.SignIn.RequireCo
 // Register Custom Services
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IAddressBookService, AddressBookServices>();
+builder.Services.AddScoped<IEmailSender, EmailService>();
 
 
 builder.Services.AddMvc();
+
+// Bind the email settings to the EmailSettings object
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
 var app = builder.Build();
 

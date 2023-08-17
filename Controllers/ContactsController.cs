@@ -11,6 +11,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using ContactProAltair.Services.Interfaces;
 using System.Collections;
+using ContactProAltair.Enums;
+using ContactProAltair.Models.ViewModels;
+using Microsoft.AspNetCore.Identity.UI.Services;
+using ContactProAltair.Services;
 
 namespace ContactProAltair.Controllers
 {
@@ -21,24 +25,41 @@ namespace ContactProAltair.Controllers
         private readonly UserManager<AppUser> _userManager;
         private readonly IImageService _imageService;
         private readonly IAddressBookService _addressBookService;
-        public ContactsController(ApplicationDbContext context, UserManager<AppUser> userManager, IImageService imageService, IAddressBookService addressBookService)
+        private readonly IEmailSender _emailService;
+
+        public ContactsController(ApplicationDbContext context, UserManager<AppUser> userManager, IImageService imageService, IAddressBookService addressBookService, IEmailSender emailService)
         {
             _context = context;
             _userManager = userManager;
             _imageService = imageService;
             _addressBookService = addressBookService;
+            _emailService = emailService;
         }
 
         // GET: Contacts
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int? categoryId, string? swalMessage = null)
         {
+            ViewData["SwalMessage"] = swalMessage;
             string? userId = _userManager.GetUserId(User);
-            IEnumerable<Contact> contacts = await _context.Contacts.Include(c => c.Categories).Where(c => c.AppUserId == userId).ToListAsync();
 
+
+            List<Contact> contacts = await _context.Contacts.Include(c => c.Categories).Where(c => c.AppUserId == userId).ToListAsync();
+            List<Contact> model = new List<Contact>();
+
+            // if statement
+            if (categoryId != null)
+            {
+                model = (await _context.Categories.Include(c => c.Contacts).FirstOrDefaultAsync(c => c.Id == categoryId))!.Contacts.ToList();
+            }
+            else
+            {
+                model = contacts.OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToList();
+            }
 
             List<Category> categories = await _context.Categories.Where(c => c.AppUserId == userId).ToListAsync();
-            ViewData["CategoriesList"] = new MultiSelectList(categories, "Id", "Name");
-            return View(contacts);       
+            ViewData["CategoriesList"] = new SelectList(categories, "Id", "Name", categoryId);
+
+            return View(model);
         }
 
         public async Task<IActionResult> SearchContacts(string? searchString)
@@ -55,7 +76,7 @@ namespace ContactProAltair.Controllers
             }
             else
             {
-                model = contacts.Where(c => c.FullName!.ToLower().Contains(searchString.ToLower())) 
+                model = contacts.Where(c => c.FullName!.ToLower().Contains(searchString.ToLower()))
                                 .OrderBy(c => c.LastName)
                                 .ThenBy(c => c.FirstName)
                                 .ToList();
@@ -63,15 +84,17 @@ namespace ContactProAltair.Controllers
 
             List<Category> categories = await _context.Categories.Where(c => c.AppUserId == userId).ToListAsync();
             ViewData["CategoriesList"] = new MultiSelectList(categories, "Id", "Name");
-            return View(nameof(Index));
+            ViewData["SearchString"] = searchString;
+
+            return View(nameof(Index), model);
         }
 
 
 
-            // GET: Contacts/Details/5
-   
+        // GET: Contacts/Details/5
 
-            public async Task<IActionResult> Details(int? id)
+
+        public async Task<IActionResult> Details(int? id)
         {
             if (id == null || _context.Contacts == null)
             {
@@ -92,13 +115,13 @@ namespace ContactProAltair.Controllers
 
         // GET: Contacts/Create
         [Authorize]
-        public async Task <IActionResult> Create()
+        public async Task<IActionResult> Create()
         {
             string userId = _userManager.GetUserId(User)!;
             List<Category> categories = await _context.Categories.Where(c => c.AppUserId == userId).ToListAsync();
 
             ViewData["CategoriesList"] = new MultiSelectList(categories, "Id", "Name");
-          
+            ViewData["StatesList"] = new SelectList(Enum.GetValues(typeof(States)).Cast<States>());
             return View();
         }
 
@@ -120,16 +143,16 @@ namespace ContactProAltair.Controllers
                 //Set Created Date
                 contact.CreatedDate = DateTime.Now;
 
-             // Set the Image data if one has been choosen
+                // Set the Image data if one has been choosen
 
-                if(contact.ImageFile != null)
+                if (contact.ImageFile != null)
                 {
                     // Create the Image Service
                     // 1. Convert the file to buyte array and assign it to the ImageData
                     contact.ImageData = await _imageService.ConvertFileToByteArrayAsync(contact.ImageFile);
                     // 2. Assign the ImageType based on the choosen file
                     contact.ImageType = contact.ImageFile.ContentType;
-                                    
+
                 }
                 _context.Add(contact);
                 await _context.SaveChangesAsync();
@@ -143,7 +166,7 @@ namespace ContactProAltair.Controllers
         // GET: Contacts/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null || _context.Contacts == null) 
+            if (id == null || _context.Contacts == null)
             {
                 return NotFound();
             }
@@ -158,7 +181,7 @@ namespace ContactProAltair.Controllers
             // Add ViewData for Categories
             // Add ViewData for States
             List<Category> categories = await _context.Categories.Where(c => c.AppUserId == userId).ToListAsync();
-            List<int>categoryIds = contact.Categories.Select(c => c.Id).ToList();
+            List<int> categoryIds = contact.Categories.Select(c => c.Id).ToList();
 
             ViewData["CategoryList"] = new MultiSelectList(categories, "Id", "Name", categoryIds);
             return View(contact);
@@ -176,11 +199,11 @@ namespace ContactProAltair.Controllers
                 return NotFound();
             }
 
-            if (ModelState.IsValid) 
+            if (ModelState.IsValid)
 
             {
                 try
-                { 
+                {
                     // Set the Image data if one has been choosen
 
                     if (contact.ImageFile != null)
@@ -200,8 +223,8 @@ namespace ContactProAltair.Controllers
                     await _addressBookService.RemoveCategoriesFromContactAsync(contact.Id);
                     // Add new categories to the contact
                     await _addressBookService.AddCategoriesToContactAsync(selected, contact.Id);
-                  
-                   
+
+
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -218,7 +241,9 @@ namespace ContactProAltair.Controllers
             }
 
             // Add ViewData for Categories
+        
             // Add ViewData for States
+
             return View(contact);
         }
 
@@ -239,6 +264,80 @@ namespace ContactProAltair.Controllers
             }
 
             return View(contact);
+        }
+
+
+        [HttpGet]
+
+        public async Task<IActionResult> EmailContact(int? id, string? swalMessage = null)
+        {
+            ViewData["SwalMessage"] = swalMessage;
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            // Do something
+            string? appUserId = _userManager.GetUserId(User);
+            Contact? contact = await _context.Contacts.Where(c => c.AppUserId == appUserId)
+                                                      .FirstOrDefaultAsync(c => c.Id == id);
+
+          if (contact == null)
+            {
+                return NotFound();
+            }
+
+          // Instantiate & Populate the EmailData
+          EmailData emailData = new EmailData()
+          {
+              EmailAddress = contact.Email,
+              FirstName = contact.FirstName,
+              LastName = contact.LastName
+          };
+
+            EmailContactViewModel viewModel = new EmailContactViewModel()
+            {
+                Contact = contact,
+                EmailData = emailData
+            };
+
+            return View(viewModel);
+        }
+
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+
+        public async Task<IActionResult> EmailContact(EmailContactViewModel viewModel)
+        {
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    string? email = viewModel.EmailData?.EmailAddress;
+                    string? subject = viewModel.EmailData?.EmailSubject;
+                    string? htmlMeassge = viewModel.EmailData?.EmailBody;
+
+                    await _emailService.SendEmailAsync(email!, subject!, htmlMeassge!);
+
+                    // Send Sweet Alert for success
+                    string? swalMessage = "Success: Email Sent!";
+
+                    return RedirectToAction(nameof(Index), new {swalMessage = swalMessage});
+                }
+                catch (Exception)
+                {
+                    // Send Sweet Alert for failure
+                    string? swalMessage = "Error: Email Failed to send!";
+                    return RedirectToAction(nameof(EmailContact), new { swalMessage = swalMessage });
+
+                    throw;
+                }
+            }
+            return View(viewModel);
+
+
         }
 
         // POST: Contacts/Delete/5
