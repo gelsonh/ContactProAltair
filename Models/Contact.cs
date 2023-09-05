@@ -16,7 +16,7 @@ namespace ContactProAltair.Models
 
 
         // Foreign Key
-        [Required]
+        [Required]  
         public string? AppUserId { get; set; }
 
         // AppUser - the owner

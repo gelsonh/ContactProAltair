@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -10,11 +7,10 @@ using ContactProAltair.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using ContactProAltair.Services.Interfaces;
-using System.Collections;
 using ContactProAltair.Enums;
 using ContactProAltair.Models.ViewModels;
 using Microsoft.AspNetCore.Identity.UI.Services;
-using ContactProAltair.Services;
+
 
 namespace ContactProAltair.Controllers
 {
@@ -93,7 +89,6 @@ namespace ContactProAltair.Controllers
 
         // GET: Contacts/Details/5
 
-
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null || _context.Contacts == null)
@@ -120,7 +115,8 @@ namespace ContactProAltair.Controllers
             string userId = _userManager.GetUserId(User)!;
             List<Category> categories = await _context.Categories.Where(c => c.AppUserId == userId).ToListAsync();
 
-            ViewData["CategoriesList"] = new MultiSelectList(categories, "Id", "Name");
+            ViewData["CategoryList"] = new MultiSelectList(categories, "Id", "Name");
+          
             ViewData["StatesList"] = new SelectList(Enum.GetValues(typeof(States)).Cast<States>());
             return View();
         }
@@ -184,6 +180,7 @@ namespace ContactProAltair.Controllers
             List<int> categoryIds = contact.Categories.Select(c => c.Id).ToList();
 
             ViewData["CategoryList"] = new MultiSelectList(categories, "Id", "Name", categoryIds);
+            ViewData["StatesList"] = new SelectList(Enum.GetValues(typeof(States)).Cast<States>());
             return View(contact);
         }
 
@@ -198,6 +195,7 @@ namespace ContactProAltair.Controllers
             {
                 return NotFound();
             }
+
 
             if (ModelState.IsValid)
 
@@ -231,18 +229,25 @@ namespace ContactProAltair.Controllers
                     if (!ContactExists(contact.Id))
                     {
                         return NotFound();
+
+
                     }
                     else
                     {
                         throw;
                     }
+
                 }
                 return RedirectToAction(nameof(Index));
+
             }
 
-            // Add ViewData for Categories
-        
+         
+
             // Add ViewData for States
+            // Add ViewData for Categories
+           
+         
 
             return View(contact);
         }
