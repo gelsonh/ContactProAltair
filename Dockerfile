@@ -7,7 +7,7 @@ EXPOSE 443
 
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 WORKDIR /src
-COPY [ContactProAltair.csproj", "."]
+COPY ["ContactProAltair.csproj", "."]
 RUN dotnet restore "./ContactProAltair.csproj"
 COPY . .
 WORKDIR "/src/."
