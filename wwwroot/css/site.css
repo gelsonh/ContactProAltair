@@ -1,7 +1,8 @@
 
 
 :root {
-    --cf-primaryColor: #0869b8;
+       --cf-primaryColor: #ff8c00; /* Nuevo color (naranja) */
+
     --cf-primaryColorDark: #262e36;
     --cf-primaryColorLight: #f9fafb;
     --cf-secondaryColor: #fff0d9;
