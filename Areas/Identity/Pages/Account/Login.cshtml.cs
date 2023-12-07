@@ -114,6 +114,7 @@ namespace ContactProAltair.Areas.Identity.Pages.Account
                 string email = _configuration[demoLoginEmail] ?? Environment.GetEnvironmentVariable(demoLoginEmail);
                 string password = _configuration["DemoLoginPassword"] ?? Environment.GetEnvironmentVariable("DemoLoginPassword");
                 var result = await _signInManager.PasswordSignInAsync(email, password, false, lockoutOnFailure: false);
+
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User logged in.");
@@ -126,7 +127,7 @@ namespace ContactProAltair.Areas.Identity.Pages.Account
                 }
             }
 
-            ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
+           
 
             if (ModelState.IsValid)
             {

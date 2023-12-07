@@ -3,7 +3,6 @@ using MailKit.Security;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.Extensions.Options;
 using MimeKit;
-using System.Collections.Generic;
 using MailKit.Net.Smtp;
 
 namespace ContactProAltair.Services

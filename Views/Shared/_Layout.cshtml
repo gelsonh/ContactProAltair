@@ -96,6 +96,19 @@
         });
     </script>
 
+    @* demologin *@
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var demoLoginButton = document.getElementById('demoLoginButton');
+
+            if (demoLoginButton) {
+                demoLoginButton.addEventListener('click', function () {
+                    // Envía manualmente el formulario al hacer clic en el botón de demostración
+                    document.getElementById('account').submit();
+                });
+            }
+        });
+    </script>
 
   
     @await RenderSectionAsync("Scripts", required: false)
